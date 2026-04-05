@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自動同步默書系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+    <style>
+        body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #fdf6e3; text-align: center; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        .status { color: #888; font-size: 12px; margin-bottom: 10px; }
+        #writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
+        .char-box { border: 1px solid #eee; border-radius: 8px; }
+        button { padding: 12px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; margin: 5px; }
+        .btn-start { background: #2ecc71; color: white; width: 100%; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔄 自動同步練習</h1>
+    <div id="loading-status" class="status">正在從 Google Sheets 獲取字詞...</div>
+    
+    <button class="btn-start" id="start-btn" onclick="startQuiz()" style="display:none;">開始默書</button>
+
+    <div id="quiz-area" style="display:none;">
+        <h2 id="quiz-status">聽一聽</h2>
+        <button onclick="speakCurrentWord()" style="background:#f39c12; color:white">🔈 播放</button>
+        <div id="writer-container"></div>
+        <button onclick="showAllStrokes()" style="background:#9b59b6; color:white">顯示筆順</button>
+        <button onclick="nextWord()" style="background:#3498db; color:white">下一個</button>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 請在此處替換成你的 Google Sheets ID
+    const SPREADSHEET_ID = '把你的ID貼在這裡'; 
+    const SHEET_NAME = '工作表1'; // 如果你的分頁改了名，這裡也要改
+    
+    let words = [];
+    let currentQuizIndex = 0;
+    let writers = [];
+
+    // 自動讀取 Google Sheets 資料
+    async function fetchWords() {
+        const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.text();
+            // 解析 CSV 格式 (簡單處理)
+            words = data.split('\n').slice(1).map(row => row.replace(/"/g, '').trim()).filter(w => w !== "");
+            
+            if (words.length > 0) {
+                document.getElementById('loading-status').innerText = `已同步 ${words.length} 個字詞`;
+                document.getElementById('start-btn').style.display = 'block';
+            } else {
+                document.getElementById('loading-status').innerText = '試算表中沒有字詞。';
+            }
+        } catch (error) {
+            document.getElementById('loading-status').innerText = '讀取失敗，請檢查 ID 或權限。';
+        }
+    }
+
+    fetchWords();
+
+    function startQuiz() {
+        document.getElementById('quiz-area').style.display = 'block';
+        words.sort(() => Math.random() - 0.5);
+        currentQuizIndex = 0;
+        showQuizWord();
+    }
+
+    function showQuizWord() {
+        const word = words[currentQuizIndex];
+        const container = document.getElementById('writer-container');
+        container.innerHTML = '';
+        writers = [];
+        document.getElementById('quiz-status').innerText = `第 ${currentQuizIndex + 1} / ${words.length} 題`;
+        
+        const msg = new SpeechSynthesisUtterance(word);
+        msg.lang = 'zh-CN';
+        window.speechSynthesis.speak(msg);
+
+        for (let char of word) {
+            const charDiv = document.createElement('div');
+            charDiv.className = 'char-box';
+            container.appendChild(charDiv);
+            writers.push(HanziWriter.create(charDiv, char, { width: 100, height: 100, padding: 5, showOutline: true }));
+        }
+    }
+
+    function speakCurrentWord() {
+        const msg = new SpeechSynthesisUtterance(words[currentQuizIndex]);
+        msg.lang = 'zh-CN';
+        window.speechSynthesis.speak(msg);
+    }
+
+    function showAllStrokes() { writers.forEach(w => w.animateCharacter()); }
+
+    function nextWord() {
+        currentQuizIndex++;
+        if (currentQuizIndex < words.length) showQuizWord();
+        else { alert('練習完畢！'); document.getElementById('quiz-area').style.display = 'none'; }
+    }
+</script>
+
+</body>
+</html>

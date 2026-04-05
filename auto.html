@@ -8,18 +8,12 @@
     <style>
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #fdf6e3; text-align: center; padding: 20px; color: #333; }
         .container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
-        .status { color: #888; font-size: 13px; margin-bottom: 15px; }
+        .status { color: #888; font-size: 14px; margin-bottom: 15px; font-weight: bold; }
         
         /* 字庫表：一行一個字詞 */
         .word-bank { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; }
-        
-        /* 每行容器：固定寬度以便編號對齊 */
         .word-row { display: flex; align-items: center; width: 100%; max-width: 260px; gap: 15px; }
-        
-        /* 序號樣式 */
-        .word-index { font-size: 18px; font-weight: bold; color: #95a5a6; width: 40px; text-align: right; font-family: 'Arial', sans-serif; }
-        
-        /* 字詞按鈕樣式 */
+        .word-index { font-size: 18px; font-weight: bold; color: #95a5a6; width: 40px; text-align: right; }
         .word-btn { flex: 1; background: #fff; border: 2px solid #3498db; color: #3498db; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; text-align: center; letter-spacing: 2px; }
         .word-btn:hover { background: #3498db; color: white; }
 
@@ -54,7 +48,7 @@
     <button class="btn-start" id="start-btn" onclick="startQuiz()" style="display:none;">開始隨機默書</button>
 
     <div id="quiz-area" style="display:none; margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 20px;">
-        <h2 id="quiz-status">聽一聽，寫寫看</h2>
+        <h2 id="quiz-status">聽一聽</h2>
         <button class="btn-audio" onclick="speakCurrentWord()">🔈 播放</button>
         <div id="writer-container"></div>
         <button class="btn-action" onclick="showAllStrokes()">顯示答案與筆順</button>
@@ -63,7 +57,7 @@
 </div>
 
 <script>
-    // CSV 連結
+    // 確定的 CSV 連結
     const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_KO4T5Nwzr_kL330-fi2aclJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
     
     let words = [];
@@ -74,29 +68,32 @@
 
     async function fetchWords() {
         try {
+            // 加入時間戳避免快取
             const response = await fetch(PUBLISH_URL + '&t=' + new Date().getTime());
+            if (!response.ok) throw new Error("網路連線異常");
+
             const data = await response.text();
             const lines = data.split(/\r?\n/);
             
-            // 跳過標題行，並過濾空白
+            // 跳過標題並解析
             words = lines.slice(1)
                          .map(row => row.split(',')[0].replace(/"/g, '').trim())
                          .filter(w => w !== "");
             
             if (words.length > 0) {
-                document.getElementById('loading-status').innerText = `✅ 已成功讀取 ${words.length} 個字詞`;
+                document.getElementById('loading-status').innerText = `✅ 已同步 ${words.length} 個字詞`;
                 renderWordBank();
                 document.getElementById('word-bank-container').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'block';
             } else {
-                document.getElementById('loading-status').innerText = '❌ 試算表中沒有偵測到字詞。';
+                document.getElementById('loading-status').innerText = '❌ 讀取成功但試算表中沒有字詞。';
             }
         } catch (error) {
-            document.getElementById('loading-status').innerText = '❌ 連線失敗。';
+            document.getElementById('loading-status').innerText = '❌ 同步失敗：請檢查 Google Sheets 是否已發佈為 CSV 或網路連結。';
+            console.error(error);
         }
     }
 
-    // 渲染一行一個字詞的列表
     function renderWordBank() {
         const container = document.getElementById('word-bank');
         container.innerHTML = words.map((w, index) => 
@@ -131,8 +128,7 @@
         if (words.length === 0) return;
         closePreview();
         document.getElementById('quiz-area').style.display = 'block';
-        let quizWords = [...words].sort(() => Math.random() - 0.5);
-        words = quizWords; // 隨機化
+        words.sort(() => Math.random() - 0.5);
         currentQuizIndex = 0;
         showQuizWord();
     }
@@ -163,7 +159,7 @@
     function speak(text) {
         window.speechSynthesis.cancel();
         const msg = new SpeechSynthesisUtterance(text);
-        msg.lang = 'zh-CN';
+        msg.lang = 'zh-CN'; // 普通話
         window.speechSynthesis.speak(msg);
     }
 

@@ -9,13 +9,21 @@
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #fdf6e3; text-align: center; padding: 20px; color: #333; }
         .container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
         .status { color: #888; font-size: 13px; margin-bottom: 15px; }
-        .word-bank { display: flex; flex-direction: column; gap: 10px; align-items: center; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; }
-        .word-row { display: flex; align-items: center; width: 100%; max-width: 250px; gap: 10px; }
-        .word-index { font-size: 16px; font-weight: bold; color: #7f8c8d; width: 30px; text-align: right; }
-        .word-btn { flex: 1; background: #fff; border: 2px solid #3498db; color: #3498db; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s; text-align: center; letter-spacing: 2px; }
+        
+        /* 字庫表：一行一個字詞 */
+        .word-bank { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; }
+        
+        /* 每行容器：固定寬度以便編號對齊 */
+        .word-row { display: flex; align-items: center; width: 100%; max-width: 260px; gap: 15px; }
+        
+        /* 序號樣式 */
+        .word-index { font-size: 18px; font-weight: bold; color: #95a5a6; width: 40px; text-align: right; font-family: 'Arial', sans-serif; }
+        
+        /* 字詞按鈕樣式 */
+        .word-btn { flex: 1; background: #fff; border: 2px solid #3498db; color: #3498db; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; text-align: center; letter-spacing: 2px; }
         .word-btn:hover { background: #3498db; color: white; }
+
         #preview-area { background: #e8f6f3; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
-        #preview-area h3 { margin-top: 0; color: #16a085; }
         #writer-container, #preview-writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
         .char-box { border: 1px solid #eee; border-radius: 8px; background: white; }
         button { padding: 12px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; margin: 5px; }
@@ -31,7 +39,7 @@
     <div id="loading-status" class="status">正在同步試算表資料...</div>
     
     <div id="word-bank-container" style="display: none;">
-        <h3 style="color: #2c3e50; font-size: 1.1em;">本期字庫表 (點擊字詞可預習)</h3>
+        <h3 style="color: #2c3e50; font-size: 1.1em;">本期字庫表 (點擊可預習)</h3>
         <div id="word-bank" class="word-bank"></div>
     </div>
 
@@ -55,7 +63,7 @@
 </div>
 
 <script>
-    // 使用你截圖中的正確發佈連結
+    // CSV 連結
     const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_KO4T5Nwzr_kL330-fi2aclJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
     
     let words = [];
@@ -68,30 +76,27 @@
         try {
             const response = await fetch(PUBLISH_URL + '&t=' + new Date().getTime());
             const data = await response.text();
-            
-            // 解析 CSV：考慮到可能存在的引號和換行符
             const lines = data.split(/\r?\n/);
-            words = lines.slice(1) // 跳過第一行標題 "Words"
-                         .map(row => {
-                             // 只取第一欄，並移除引號與前後空白
-                             let word = row.split(',')[0];
-                             return word ? word.replace(/"/g, '').trim() : "";
-                         })
+            
+            // 跳過標題行，並過濾空白
+            words = lines.slice(1)
+                         .map(row => row.split(',')[0].replace(/"/g, '').trim())
                          .filter(w => w !== "");
             
             if (words.length > 0) {
-                document.getElementById('loading-status').innerText = `✅ 已成功同步 ${words.length} 個字詞`;
+                document.getElementById('loading-status').innerText = `✅ 已成功讀取 ${words.length} 個字詞`;
                 renderWordBank();
                 document.getElementById('word-bank-container').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'block';
             } else {
-                document.getElementById('loading-status').innerText = '❌ 試算表中沒有偵測到有效字詞，請確認 A2 格是否有內容。';
+                document.getElementById('loading-status').innerText = '❌ 試算表中沒有偵測到字詞。';
             }
         } catch (error) {
-            document.getElementById('loading-status').innerText = '❌ 連線失敗，請檢查網路或發佈權限。';
+            document.getElementById('loading-status').innerText = '❌ 連線失敗。';
         }
     }
 
+    // 渲染一行一個字詞的列表
     function renderWordBank() {
         const container = document.getElementById('word-bank');
         container.innerHTML = words.map((w, index) => 
@@ -109,14 +114,13 @@
         const container = document.getElementById('preview-writer-container');
         container.innerHTML = '';
         previewWriters = [];
-
         for (let char of word) {
             const charDiv = document.createElement('div');
             charDiv.className = 'char-box';
             container.appendChild(charDiv);
-            previewWriters.push(HanziWriter.create(charDiv, char, { width: 80, height: 80, padding: 5, showOutline: true, strokeAnimationSpeed: 1.5 }));
+            previewWriters.push(HanziWriter.create(charDiv, char, { width: 80, height: 80, padding: 5, showOutline: true }));
         }
-        speakPreviewWord();
+        speak(word);
     }
 
     function animatePreview() { previewWriters.forEach(w => w.animateCharacter()); }
@@ -127,11 +131,10 @@
         if (words.length === 0) return;
         closePreview();
         document.getElementById('quiz-area').style.display = 'block';
-        // 隨機排序題目
-        words.sort(() => Math.random() - 0.5);
+        let quizWords = [...words].sort(() => Math.random() - 0.5);
+        words = quizWords; // 隨機化
         currentQuizIndex = 0;
         showQuizWord();
-        document.getElementById('quiz-area').scrollIntoView({ behavior: 'smooth' });
     }
 
     function showQuizWord() {
@@ -145,7 +148,6 @@
             const charDiv = document.createElement('div');
             charDiv.className = 'char-box';
             container.appendChild(charDiv);
-            // 預設不顯示字元，讓使用者默寫
             quizWriters.push(HanziWriter.create(charDiv, char, { width: 100, height: 100, padding: 5, showCharacter: false, showOutline: false }));
         }
     }
@@ -155,4 +157,17 @@
     function nextWord() {
         currentQuizIndex++;
         if (currentQuizIndex < words.length) showQuizWord();
-        else { alert('恭喜！全部練習完畢！'); document.getElementById('quiz-area').style.display = 'none
+        else { alert('練習完畢！'); document.getElementById('quiz-area').style.display = 'none'; }
+    }
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'zh-CN';
+        window.speechSynthesis.speak(msg);
+    }
+
+    fetchWords();
+</script>
+</body>
+</html>

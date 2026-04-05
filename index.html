@@ -6,52 +6,67 @@
     <title>女兒的中文默書練習</title>
     <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
     <style>
-        body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f0f8ff; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 90%; max-width: 600px; }
-        h1 { color: #2c3e50; text-align: center; }
-        .input-group { margin-bottom: 20px; display: flex; gap: 10px; }
-        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        button { padding: 10px 15px; cursor: pointer; border: none; border-radius: 5px; background: #3498db; color: white; transition: 0.3s; }
-        button:hover { background: #2980b9; }
-        .word-list { margin: 20px 0; border-top: 2px solid #eee; padding-top: 10px; }
-        .word-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #fafafa; }
-        #quiz-area { text-align: center; margin-top: 30px; display: none; }
-        #target-character { width: 200px; height: 200px; margin: 10px auto; border: 1px solid #eee; }
-        .btn-quiz { background: #27ae60; width: 100%; margin-top: 10px; font-size: 1.2em; }
+        body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f7f9fc; color: #333; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); width: 100%; max-width: 500px; }
+        h1 { text-align: center; color: #4a90e2; font-size: 1.8em; margin-bottom: 20px; }
+        .input-group { display: flex; gap: 8px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; border: 2px solid #e1e8ed; border-radius: 10px; font-size: 16px; outline: none; }
+        input:focus { border-color: #4a90e2; }
+        button { padding: 10px 18px; cursor: pointer; border: none; border-radius: 10px; font-weight: bold; transition: 0.2s; }
+        .btn-add { background: #4a90e2; color: white; }
+        .word-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f0f0f0; }
+        .btn-del { background: #ff7675; color: white; padding: 5px 10px; font-size: 12px; }
+        
+        /* 筆順顯示區優化 */
+        #quiz-area { text-align: center; margin-top: 30px; display: none; border-top: 2px dashed #eee; padding-top: 20px; }
+        #writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
+        .char-box { border: 1px solid #ddd; background: #fff; border-radius: 8px; }
+        
+        .sync-tools { margin-top: 20px; padding: 15px; background: #f0f4f8; border-radius: 10px; font-size: 13px; }
+        .btn-sync { background: #6c5ce7; color: white; width: 100%; margin-top: 5px; }
+        .btn-start { background: #00b894; color: white; width: 100%; font-size: 1.2em; margin-top: 15px; padding: 15px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>📝 中文默書小助手</h1>
+    <h1>📝 潔婷的默書小助手</h1>
 
     <div class="input-group">
-        <input type="text" id="new-word" placeholder="輸入要練習的字或詞...">
-        <button onclick="addWord()">加入</button>
+        <input type="text" id="new-word" placeholder="輸入字詞（如：黎潔婷）">
+        <button class="btn-add" onclick="addWord()">加入</button>
     </div>
 
-    <div class="word-list" id="word-list">
-        <h3>我的字詞庫</h3>
-        <div id="list-container"></div>
-    </div>
+    <div id="list-container"></div>
 
-    <button class="btn-quiz" onclick="startQuiz()">開始隨機默書</button>
+    <button class="btn-start" onclick="startQuiz()">開始隨機默書</button>
 
     <div id="quiz-area">
-        <h2 id="quiz-status">聽一聽，寫寫看</h2>
-        <button onclick="speakCurrentWord()" style="background:#e67e22">🔈 播放讀音</button>
-        <div id="target-character"></div>
-        <button onclick="showStroke()" style="background:#9b59b6">顯示筆順</button>
-        <button onclick="nextWord()" id="next-btn">下一個</button>
+        <h3 id="quiz-status">聽一聽，寫寫看</h3>
+        <button onclick="speakCurrentWord()" style="background:#fdcb6e; color:white">🔈 播放讀音</button>
+        
+        <div id="writer-container"></div>
+        
+        <div style="display: flex; gap: 10px;">
+            <button onclick="showAllStrokes()" style="flex:1; background:#a29bfe; color:white">顯示筆順</button>
+            <button onclick="nextWord()" id="next-btn" style="flex:1; background:#0984e3; color:white">下一個</button>
+        </div>
+    </div>
+
+    <div class="sync-tools">
+        <strong>📱 跨設備同步（臨時方案）</strong><br>
+        1. 在原手機點擊「複製備份碼」<br>
+        2. 在新手機貼上後點擊「匯入」
+        <button class="btn-sync" onclick="exportData()">📋 複製備份碼</button>
+        <button class="btn-sync" style="background:#b2bec3" onclick="importData()">📥 匯入字庫</button>
     </div>
 </div>
 
 <script>
     let words = JSON.parse(localStorage.getItem('myWords')) || [];
     let currentQuizIndex = 0;
-    let writer;
+    let writers = [];
 
-    // 初始化顯示列表
     renderList();
 
     function addWord() {
@@ -59,14 +74,14 @@
         const val = input.value.trim();
         if (val) {
             words.push(val);
-            saveData();
+            saveAndRender();
             input.value = '';
-            renderList();
         }
     }
 
-    function saveData() {
+    function saveAndRender() {
         localStorage.setItem('myWords', JSON.stringify(words));
+        renderList();
     }
 
     function renderList() {
@@ -74,56 +89,68 @@
         container.innerHTML = words.map((w, index) => `
             <div class="word-item">
                 <span>${w}</span>
-                <button onclick="deleteWord(${index})" style="background:#e74c3c; padding:2px 8px;">刪除</button>
+                <button class="btn-del" onclick="deleteWord(${index})">刪除</button>
             </div>
         `).join('');
     }
 
     function deleteWord(index) {
-        words.splice(index, 1);
-        saveData();
-        renderList();
+        if(confirm('確定要刪除這個詞嗎？')) {
+            words.splice(index, 1);
+            saveAndRender();
+        }
     }
 
-    // 3. 普通話發音
     function speak(text) {
         const msg = new SpeechSynthesisUtterance(text);
-        msg.lang = 'zh-CN'; // 設定為普通話
+        msg.lang = 'zh-CN';
         window.speechSynthesis.speak(msg);
     }
 
-    // 5. 隨機抽取字詞
     function startQuiz() {
         if (words.length === 0) return alert('請先加入字詞！');
         document.getElementById('quiz-area').style.display = 'block';
-        words.sort(() => Math.random() - 0.5); // 隨機排序
+        words.sort(() => Math.random() - 0.5);
         currentQuizIndex = 0;
         showQuizWord();
+        // 自動滾動到默書區
+        document.getElementById('quiz-area').scrollIntoView({ behavior: 'smooth' });
     }
 
+    // 修復：顯示所有字的筆順
     function showQuizWord() {
         const word = words[currentQuizIndex];
-        document.getElementById('target-character').innerHTML = '';
+        const container = document.getElementById('writer-container');
+        container.innerHTML = ''; 
+        writers = []; 
+        
         document.getElementById('quiz-status').innerText = `第 ${currentQuizIndex + 1} 題 / 共 ${words.length} 題`;
         speak(word);
-        
-        // 4. 筆順動畫 (預備，但不先顯示)
-        writer = HanziWriter.create('target-character', word[0], {
-            width: 200,
-            height: 200,
-            padding: 5,
-            showOutline: true,
-            strokeAnimationSpeed: 1,
-            delayBetweenStrokes: 200
-        });
+
+        // 為詞語中的每個字創建一個框
+        for (let char of word) {
+            const charDiv = document.createElement('div');
+            charDiv.className = 'char-box';
+            container.appendChild(charDiv);
+
+            const writer = HanziWriter.create(charDiv, char, {
+                width: 100,
+                height: 100,
+                padding: 5,
+                showOutline: true,
+                strokeAnimationSpeed: 2,
+                delayBetweenStrokes: 150
+            });
+            writers.push(writer);
+        }
+    }
+
+    function showAllStrokes() {
+        writers.forEach(w => w.animateCharacter());
     }
 
     function speakCurrentWord() {
         speak(words[currentQuizIndex]);
-    }
-
-    function showStroke() {
-        if (writer) writer.animateCharacter();
     }
 
     function nextWord() {
@@ -131,8 +158,32 @@
         if (currentQuizIndex < words.length) {
             showQuizWord();
         } else {
-            alert('全部分默完囉！好棒！');
+            alert('全部分默完囉！');
             document.getElementById('quiz-area').style.display = 'none';
+        }
+    }
+
+    // 跨設備功能
+    function exportData() {
+        const dataStr = JSON.stringify(words);
+        navigator.clipboard.writeText(dataStr).then(() => {
+            alert('備份碼已複製！請將其傳到另一部手機並在匯入處貼上。');
+        });
+    }
+
+    function importData() {
+        const code = prompt('請貼上備份碼：');
+        if (code) {
+            try {
+                const imported = JSON.parse(code);
+                if (Array.isArray(imported)) {
+                    words = imported;
+                    saveAndRender();
+                    alert('匯入成功！');
+                }
+            } catch (e) {
+                alert('備份碼錯誤，請重新複製。');
+            }
         }
     }
 </script>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>女兒的中文默書練習</title>
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+    <style>
+        body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f0f8ff; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 90%; max-width: 600px; }
+        h1 { color: #2c3e50; text-align: center; }
+        .input-group { margin-bottom: 20px; display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 15px; cursor: pointer; border: none; border-radius: 5px; background: #3498db; color: white; transition: 0.3s; }
+        button:hover { background: #2980b9; }
+        .word-list { margin: 20px 0; border-top: 2px solid #eee; padding-top: 10px; }
+        .word-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; border-bottom: 1px solid #fafafa; }
+        #quiz-area { text-align: center; margin-top: 30px; display: none; }
+        #target-character { width: 200px; height: 200px; margin: 10px auto; border: 1px solid #eee; }
+        .btn-quiz { background: #27ae60; width: 100%; margin-top: 10px; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📝 中文默書小助手</h1>
+
+    <div class="input-group">
+        <input type="text" id="new-word" placeholder="輸入要練習的字或詞...">
+        <button onclick="addWord()">加入</button>
+    </div>
+
+    <div class="word-list" id="word-list">
+        <h3>我的字詞庫</h3>
+        <div id="list-container"></div>
+    </div>
+
+    <button class="btn-quiz" onclick="startQuiz()">開始隨機默書</button>
+
+    <div id="quiz-area">
+        <h2 id="quiz-status">聽一聽，寫寫看</h2>
+        <button onclick="speakCurrentWord()" style="background:#e67e22">🔈 播放讀音</button>
+        <div id="target-character"></div>
+        <button onclick="showStroke()" style="background:#9b59b6">顯示筆順</button>
+        <button onclick="nextWord()" id="next-btn">下一個</button>
+    </div>
+</div>
+
+<script>
+    let words = JSON.parse(localStorage.getItem('myWords')) || [];
+    let currentQuizIndex = 0;
+    let writer;
+
+    // 初始化顯示列表
+    renderList();
+
+    function addWord() {
+        const input = document.getElementById('new-word');
+        const val = input.value.trim();
+        if (val) {
+            words.push(val);
+            saveData();
+            input.value = '';
+            renderList();
+        }
+    }
+
+    function saveData() {
+        localStorage.setItem('myWords', JSON.stringify(words));
+    }
+
+    function renderList() {
+        const container = document.getElementById('list-container');
+        container.innerHTML = words.map((w, index) => `
+            <div class="word-item">
+                <span>${w}</span>
+                <button onclick="deleteWord(${index})" style="background:#e74c3c; padding:2px 8px;">刪除</button>
+            </div>
+        `).join('');
+    }
+
+    function deleteWord(index) {
+        words.splice(index, 1);
+        saveData();
+        renderList();
+    }
+
+    // 3. 普通話發音
+    function speak(text) {
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'zh-CN'; // 設定為普通話
+        window.speechSynthesis.speak(msg);
+    }
+
+    // 5. 隨機抽取字詞
+    function startQuiz() {
+        if (words.length === 0) return alert('請先加入字詞！');
+        document.getElementById('quiz-area').style.display = 'block';
+        words.sort(() => Math.random() - 0.5); // 隨機排序
+        currentQuizIndex = 0;
+        showQuizWord();
+    }
+
+    function showQuizWord() {
+        const word = words[currentQuizIndex];
+        document.getElementById('target-character').innerHTML = '';
+        document.getElementById('quiz-status').innerText = `第 ${currentQuizIndex + 1} 題 / 共 ${words.length} 題`;
+        speak(word);
+        
+        // 4. 筆順動畫 (預備，但不先顯示)
+        writer = HanziWriter.create('target-character', word[0], {
+            width: 200,
+            height: 200,
+            padding: 5,
+            showOutline: true,
+            strokeAnimationSpeed: 1,
+            delayBetweenStrokes: 200
+        });
+    }
+
+    function speakCurrentWord() {
+        speak(words[currentQuizIndex]);
+    }
+
+    function showStroke() {
+        if (writer) writer.animateCharacter();
+    }
+
+    function nextWord() {
+        currentQuizIndex++;
+        if (currentQuizIndex < words.length) {
+            showQuizWord();
+        } else {
+            alert('全部分默完囉！好棒！');
+            document.getElementById('quiz-area').style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -10,15 +10,22 @@
         .container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
         .status { color: #888; font-size: 13px; margin-bottom: 15px; }
         
-        /* 字庫表樣式 */
-        .word-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; }
-        .word-btn { background: #fff; border: 2px solid #3498db; color: #3498db; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        /* 字庫表：垂直排列樣式 */
+        .word-bank { display: flex; flex-direction: column; gap: 10px; align-items: center; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; }
+        
+        /* 每一行字詞的容器 */
+        .word-row { display: flex; align-items: center; width: 100%; max-width: 250px; gap: 10px; }
+        
+        /* 序號樣式 */
+        .word-index { font-size: 16px; font-weight: bold; color: #7f8c8d; width: 30px; text-align: right; }
+        
+        /* 字詞按鈕樣式 */
+        .word-btn { flex: 1; background: #fff; border: 2px solid #3498db; color: #3498db; padding: 10px 15px; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s; text-align: center; letter-spacing: 2px; }
         .word-btn:hover { background: #3498db; color: white; }
 
-        /* 預習區塊樣式 */
+        /* 預習區 */
         #preview-area { background: #e8f6f3; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
         #preview-area h3 { margin-top: 0; color: #16a085; }
-
         #writer-container, #preview-writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
         .char-box { border: 1px solid #eee; border-radius: 8px; background: white; }
         
@@ -32,7 +39,7 @@
 
 <div class="container">
     <h1>📝 自動同步默書練習</h1>
-    <div id="loading-status" class="status">正在從 Google Sheets 獲取字詞...</div>
+    <div id="loading-status" class="status">正在同步試算表資料...</div>
     
     <div id="word-bank-container" style="display: none;">
         <h3 style="color: #2c3e50; font-size: 1.1em;">本期字庫表 (點擊字詞可預習)</h3>
@@ -40,8 +47,8 @@
     </div>
 
     <div id="preview-area">
-        <h3>🔍 預習模式</h3>
-        <button class="btn-audio" onclick="speakPreviewWord()">🔈 讀出字詞</button>
+        <h3>🔍 預習模式 (普通話)</h3>
+        <button class="btn-audio" onclick="speakPreviewWord()">🔈 聽發音</button>
         <button class="btn-action" onclick="animatePreview()">演示筆順</button>
         <div id="preview-writer-container"></div>
         <button onclick="closePreview()" style="background:#bdc3c7; color:#333; margin-top:10px;">關閉預習</button>
@@ -59,8 +66,8 @@
 </div>
 
 <script>
-    // ⚠️ 記得替換成你自己的發佈連結！
-    const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_K04T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
+    // CSV 連結
+    const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_KO4T5Nwzr_kL330-fi2aclJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
     
     let words = [];
     let currentQuizIndex = 0;
@@ -68,44 +75,42 @@
     let previewWriters = [];
     let currentPreviewWord = '';
 
-    // 自動讀取 Google Sheets 資料
     async function fetchWords() {
         try {
-            const response = await fetch(PUBLISH_URL);
+            const response = await fetch(PUBLISH_URL + '&t=' + new Date().getTime());
             const data = await response.text();
-            
-            const lines = data.split('\n');
+            const lines = data.split(/\r?\n/);
             words = lines.slice(1)
-                         .map(row => row.trim().replace(/"/g, ''))
-                         .filter(w => w !== "");
+                         .map(row => row.split(',')[0].trim().replace(/"/g, ''))
+                         .filter(w => w !== "" && w !== "Words");
             
             if (words.length > 0) {
-                document.getElementById('loading-status').innerText = `✅ 已同步 ${words.length} 個字詞`;
-                renderWordBank(); // 顯示字庫表
+                document.getElementById('loading-status').innerText = `✅ 已成功讀取 ${words.length} 個字詞`;
+                renderWordBank();
                 document.getElementById('word-bank-container').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'block';
             } else {
-                document.getElementById('loading-status').innerText = '試算表中沒有字詞。';
+                document.getElementById('loading-status').innerText = '❌ 試算表中沒有字詞。';
             }
         } catch (error) {
-            document.getElementById('loading-status').innerText = '讀取失敗，請檢查網路或權限。';
+            document.getElementById('loading-status').innerText = '❌ 連線失敗，請檢查網絡。';
         }
     }
 
-    // 建立字庫表按鈕
     function renderWordBank() {
         const container = document.getElementById('word-bank');
-        container.innerHTML = words.map(w => 
-            `<button class="word-btn" onclick="openPreview('${w}')">${w}</button>`
+        container.innerHTML = words.map((w, index) => 
+            `<div class="word-row">
+                <span class="word-index">${index + 1}.</span>
+                <button class="word-btn" onclick="openPreview('${w}')">${w}</button>
+            </div>`
         ).join('');
     }
 
-    // --- 預習功能邏輯 ---
     function openPreview(word) {
         currentPreviewWord = word;
         document.getElementById('preview-area').style.display = 'block';
-        document.getElementById('quiz-area').style.display = 'none'; // 隱藏默書區
-        
+        document.getElementById('quiz-area').style.display = 'none';
         const container = document.getElementById('preview-writer-container');
         container.innerHTML = '';
         previewWriters = [];
@@ -114,33 +119,20 @@
             const charDiv = document.createElement('div');
             charDiv.className = 'char-box';
             container.appendChild(charDiv);
-            // 預習模式直接顯示字體輪廓
-            previewWriters.push(HanziWriter.create(charDiv, char, { width: 100, height: 100, padding: 5, showOutline: true, strokeAnimationSpeed: 1.5 }));
+            previewWriters.push(HanziWriter.create(charDiv, char, { width: 80, height: 80, padding: 5, showOutline: true, strokeAnimationSpeed: 1.5 }));
         }
-        
-        // 打開預習時自動發音一次
         speakPreviewWord();
     }
 
-    function animatePreview() {
-        previewWriters.forEach(w => w.animateCharacter());
-    }
+    function animatePreview() { previewWriters.forEach(w => w.animateCharacter()); }
+    function speakPreviewWord() { speak(currentPreviewWord); }
+    function closePreview() { document.getElementById('preview-area').style.display = 'none'; }
 
-    function speakPreviewWord() {
-        speak(currentPreviewWord);
-    }
-
-    function closePreview() {
-        document.getElementById('preview-area').style.display = 'none';
-        document.getElementById('preview-writer-container').innerHTML = '';
-    }
-
-    // --- 默書功能邏輯 (與之前相同) ---
     function startQuiz() {
         if (words.length === 0) return;
-        closePreview(); // 開始默書時關閉預習
+        closePreview();
         document.getElementById('quiz-area').style.display = 'block';
-        words.sort(() => Math.random() - 0.5); // 隨機打亂
+        words.sort(() => Math.random() - 0.5);
         currentQuizIndex = 0;
         showQuizWord();
         document.getElementById('quiz-area').scrollIntoView({ behavior: 'smooth' });
@@ -152,49 +144,30 @@
         container.innerHTML = '';
         quizWriters = [];
         document.getElementById('quiz-status').innerText = `第 ${currentQuizIndex + 1} / ${words.length} 題`;
-        
         speak(word);
-
         for (let char of word) {
             const charDiv = document.createElement('div');
             charDiv.className = 'char-box';
             container.appendChild(charDiv);
-            // 默書模式一開始隱藏輪廓 (只顯示框)，點擊顯示答案後才畫出來
             quizWriters.push(HanziWriter.create(charDiv, char, { width: 100, height: 100, padding: 5, showCharacter: false, showOutline: false }));
         }
     }
 
-    function speakCurrentWord() {
-        speak(words[currentQuizIndex]);
-    }
-
-    function showAllStrokes() { 
-        quizWriters.forEach(w => {
-            w.showOutline();
-            w.animateCharacter();
-        }); 
-    }
-
+    function speakCurrentWord() { speak(words[currentQuizIndex]); }
+    function showAllStrokes() { quizWriters.forEach(w => { w.showOutline(); w.animateCharacter(); }); }
     function nextWord() {
         currentQuizIndex++;
-        if (currentQuizIndex < words.length) {
-            showQuizWord();
-        } else { 
-            alert('太棒了！所有題目都默寫完畢！'); 
-            document.getElementById('quiz-area').style.display = 'none'; 
-        }
+        if (currentQuizIndex < words.length) showQuizWord();
+        else { alert('練習完畢！'); document.getElementById('quiz-area').style.display = 'none'; }
     }
 
-    // 共用語音功能
     function speak(text) {
-        // 先停止之前的發音，避免重疊
         window.speechSynthesis.cancel();
         const msg = new SpeechSynthesisUtterance(text);
-        msg.lang = 'zh-CN'; // 設定為普通話
+        msg.lang = 'zh-CN'; // 已改回普通話
         window.speechSynthesis.speak(msg);
     }
 
-    // 啟動程式
     fetchWords();
 </script>
 

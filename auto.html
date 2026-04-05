@@ -34,8 +34,8 @@
 
 <script>
     // ⚠️ 請在此處替換成你的 Google Sheets ID
-    const SPREADSHEET_ID = '2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_K04T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
-    const SHEET_NAME = 'Sheet1'; // 如果你的分頁改了名，這裡也要改
+  // ⚠️ 直接使用你的發佈連結，最穩定
+    const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_KO4T5Nwzr_kL330-fi2aclJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
     
     let words = [];
     let currentQuizIndex = 0;
@@ -43,12 +43,15 @@
 
     // 自動讀取 Google Sheets 資料
     async function fetchWords() {
-        const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${SHEET_NAME}`;
         try {
-            const response = await fetch(url);
+            const response = await fetch(PUBLISH_URL);
             const data = await response.text();
-            // 解析 CSV 格式 (簡單處理)
-            words = data.split('\n').slice(1).map(row => row.replace(/"/g, '').trim()).filter(w => w !== "");
+            
+            // 解析 CSV：跳過第一行標題，並過濾掉空白行
+            const lines = data.split('\n');
+            words = lines.slice(1)
+                         .map(row => row.trim().replace(/"/g, ''))
+                         .filter(w => w !== "");
             
             if (words.length > 0) {
                 document.getElementById('loading-status').innerText = `已同步 ${words.length} 個字詞`;
@@ -57,7 +60,7 @@
                 document.getElementById('loading-status').innerText = '試算表中沒有字詞。';
             }
         } catch (error) {
-            document.getElementById('loading-status').innerText = '讀取失敗，請檢查 ID 或權限。';
+            document.getElementById('loading-status').innerText = '讀取失敗，請檢查網路或權限。';
         }
     }
 

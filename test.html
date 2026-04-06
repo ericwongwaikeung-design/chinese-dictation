@@ -3,70 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自動同步默書系統 v2.2</title>
+    <title>默書系統 v2.3 - 穩定修復版</title>
     <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
     <style>
         :root { --primary-color: #3498db; --success-color: #2ecc71; --bg-color: #fdf6e3; }
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: var(--bg-color); text-align: center; padding: 15px; color: #333; margin: 0; }
-        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: auto; min-height: 400px; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: auto; min-height: 450px; }
         
-        .status { color: #888; font-size: 14px; margin-bottom: 10px; }
+        .status { color: #888; font-size: 14px; margin-bottom: 10px; padding: 5px; }
         .lang-switch { margin-bottom: 20px; padding: 12px; background: #f0f0f0; border-radius: 10px; display: inline-flex; gap: 15px; align-items: center; }
 
-        /* 1. 字庫表容器：設定固定高度與捲軸 */
-        #word-bank-container {
-            border: 1px solid #eee;
-            border-radius: 12px;
-            padding: 10px;
-            background: #fafafa;
-            margin-bottom: 20px;
-            display: none;
-        }
-
+        /* 字庫表：限定高度並顯示捲軸 */
+        #word-bank-container { border: 1px solid #ddd; border-radius: 12px; background: #fafafa; margin-bottom: 20px; display: none; overflow: hidden; }
         .word-bank { 
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            /* 設定最大高度，約可容納 5 個單行詞條 */
-            max-height: 320px; 
-            overflow-y: auto; 
-            padding: 10px;
-            /* 美化捲軸樣式 */
-            scrollbar-width: thin;
-            scrollbar-color: var(--primary-color) #f0f0f0;
+            display: flex; flex-direction: column; gap: 8px; 
+            max-height: 300px; /* 約 5 個項目的高度 */
+            overflow-y: auto; padding: 15px; text-align: left;
         }
-
-        /* Chrome/Edge/Safari 捲軸優化 */
+        
+        /* 捲軸美化 */
         .word-bank::-webkit-scrollbar { width: 8px; }
-        .word-bank::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 10px; }
-        .word-bank::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 10px; }
-
-        .word-item { display: flex; width: 100%; }
+        .word-bank::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
 
         .word-btn { 
             background: #fff; border: 2px solid var(--primary-color); color: var(--primary-color); 
             padding: 12px 15px; border-radius: 10px; cursor: pointer; 
             font-size: 18px; font-weight: bold; width: 100%;
-            text-align: left; white-space: normal; word-break: break-all;
-            transition: 0.2s;
+            white-space: normal; word-break: break-all; transition: 0.2s;
         }
         .word-btn:hover { background: #ebf5fb; }
 
-        /* 2. 預習模式：精準 10 字換行 */
+        /* 預習區：精準 10 字換行 */
         #preview-area { background: #e8f6f3; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: none; }
         #preview-writer-container { 
             display: flex; flex-wrap: wrap; justify-content: flex-start; 
-            gap: 5px; margin: 20px auto; 
-            width: 455px; /* (40px字體 + 5px間距) * 10 */
+            gap: 5px; margin: 15px auto; width: 455px; /* (40px + 5px gap) * 10 */
         }
-        
-        .char-box { border: 1px solid #ddd; border-radius: 4px; background: white; flex-shrink: 0; }
+        .char-box { border: 1px solid #ddd; border-radius: 4px; background: white; box-sizing: border-box; }
         
         /* 測驗區 */
         #writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
         
         button { padding: 12px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; }
-        .btn-start { background: var(--success-color); color: white; width: 100%; font-size: 1.2em; margin-top: 10px; }
+        .btn-start { background: var(--success-color); color: white; width: 100%; font-size: 1.2em; }
         .btn-audio { background: #f39c12; color: white; }
         .btn-action { background: #9b59b6; color: white; }
     </style>
@@ -85,26 +64,28 @@
     <div id="loading-status" class="status">正在同步試算表資料...</div>
     
     <div id="word-bank-container">
-        <h3 style="color: #2c3e50; margin-top: 0;">本期字庫表 (可上下捲動)</h3>
+        <div style="padding: 10px; background: #eee; font-weight: bold; border-bottom: 1px solid #ddd;">本期字庫表 (向上滑動查看更多)</div>
         <div id="word-bank" class="word-bank"></div>
     </div>
 
     <div id="preview-area">
-        <h3 style="color: #16a085;">🔍 預習模式</h3>
+        <h3 style="color: #16a085; margin-top: 0;">🔍 預習模式</h3>
         <button class="btn-audio" onclick="speakPreviewWord()">🔈 讀音</button>
-        <button class="btn-action" onclick="animatePreview()">演示筆順</button>
+        <button class="btn-action" onclick="animatePreview()">筆順演示</button>
         <div id="preview-writer-container"></div>
-        <button onclick="closePreview()" style="background:#bdc3c7; margin-top:10px;">關閉預習</button>
+        <button onclick="closePreview()" style="background:#bdc3c7; margin-top: 10px;">返回字庫</button>
     </div>
     
     <button class="btn-start" id="start-btn" onclick="startQuiz()" style="display:none;">開始隨機默書</button>
 
     <div id="quiz-area" style="display:none; margin-top: 25px; border-top: 2px dashed #eee; padding-top: 20px;">
         <h2 id="quiz-status">聽寫練習</h2>
-        <button class="btn-audio" onclick="speakCurrentWord()" style="font-size: 1.2em;">🔈 重新播放題目</button>
+        <button class="btn-audio" onclick="speakCurrentWord()">🔈 重新播放</button>
         <div id="writer-container"></div>
-        <button class="btn-action" onclick="showAllStrokes()">顯示答案</button>
-        <button onclick="nextWord()" style="background:var(--primary-color); color:white">下一題</button>
+        <div style="margin-top:15px;">
+            <button class="btn-action" onclick="showAllStrokes()">顯示答案</button>
+            <button onclick="nextWord()" style="background:var(--primary-color); color:white">下一題</button>
+        </div>
     </div>
 </div>
 
@@ -118,16 +99,27 @@
     let previewWriters = [];
     let currentPreviewWord = '';
 
+    // 核心修復：使用更安全的解析方式
     async function fetchWords() {
         const statusEl = document.getElementById('loading-status');
         try {
             const response = await fetch(`${PUBLISH_URL}&t=${Date.now()}`);
-            const data = await response.text();
-            const lines = data.split(/\r?\n/);
+            if (!response.ok) throw new Error('網絡連線異常');
             
-            words = lines.slice(1) 
-                         .map(row => row.split(',')[0].trim().replace(/^"|"$/g, ''))
-                         .filter(w => w.length > 0);
+            const rawData = await response.text();
+            if (!rawData || rawData.trim() === "") throw new Error('讀取到空白資料');
+
+            const lines = rawData.split(/\r?\n/);
+            words = [];
+
+            // 從第二行開始讀取 (i=1)
+            for (let i = 1; i < lines.length; i++) {
+                let cell = lines[i].split(',')[0]; // 只取 A 欄
+                if (cell) {
+                    let cleanWord = cell.trim().replace(/^"|"$/g, ''); // 去除引號
+                    if (cleanWord !== "") words.push(cleanWord);
+                }
+            }
             
             if (words.length > 0) {
                 statusEl.innerHTML = `<span style="color:green">✅ 已成功同步 ${words.length} 組內容</span>`;
@@ -135,10 +127,11 @@
                 document.getElementById('word-bank-container').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'block';
             } else {
-                statusEl.innerText = '⚠️ 試算表內沒有偵測到資料。';
+                statusEl.innerText = '⚠️ 試算表 A 欄似乎沒有字詞。';
             }
         } catch (error) {
-            statusEl.innerHTML = `<span style="color:red">❌ 同步失敗，請確認 Google Sheets 設定。</span>`;
+            console.error(error);
+            statusEl.innerHTML = `<span style="color:red">❌ 同步失敗: ${error.message}</span><br><small>請檢查 Sheets 是否已「發佈為 CSV」</small>`;
         }
     }
 
@@ -153,7 +146,8 @@
     function openPreview(word) {
         currentPreviewWord = word;
         document.getElementById('preview-area').style.display = 'block';
-        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('word-bank-container').style.display = 'none';
+        document.getElementById('start-btn').style.display = 'none';
         
         const container = document.getElementById('preview-writer-container');
         container.innerHTML = '';
@@ -168,20 +162,24 @@
             }));
         }
         speak(word);
-        document.getElementById('preview-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function closePreview() {
+        document.getElementById('preview-area').style.display = 'none';
+        document.getElementById('word-bank-container').style.display = 'block';
+        document.getElementById('start-btn').style.display = 'block';
     }
 
     function animatePreview() { previewWriters.forEach(w => w.animateCharacter()); }
     function speakPreviewWord() { speak(currentPreviewWord); }
-    function closePreview() { document.getElementById('preview-area').style.display = 'none'; }
 
     function startQuiz() {
-        closePreview();
         quizPool = [...words].sort(() => Math.random() - 0.5);
         currentQuizIndex = 0;
+        document.getElementById('word-bank-container').style.display = 'none';
+        document.getElementById('start-btn').style.display = 'none';
         document.getElementById('quiz-area').style.display = 'block';
         showQuizWord();
-        document.getElementById('quiz-area').scrollIntoView({ behavior: 'smooth' });
     }
 
     function showQuizWord() {
@@ -210,8 +208,8 @@
         if (currentQuizIndex < quizPool.length) {
             showQuizWord();
         } else { 
-            alert('練習結束！'); 
-            document.getElementById('quiz-area').style.display = 'none'; 
+            alert('全數練習完成！'); 
+            location.reload(); // 重置回字庫表
         }
     }
 

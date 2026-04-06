@@ -3,41 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自動同步默書系統 v2.0</title>
+    <title>自動同步默書系統 v2.1</title>
     <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
     <style>
         :root { --primary-color: #3498db; --success-color: #2ecc71; --bg-color: #fdf6e3; }
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: var(--bg-color); text-align: center; padding: 15px; color: #333; margin: 0; }
-        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 700px; margin: auto; min-height: 400px; }
         
-        .status { color: #888; font-size: 14px; margin-bottom: 15px; }
-        .lang-switch { margin-bottom: 20px; padding: 12px; background: #f0f0f0; border-radius: 10px; display: inline-flex; gap: 15px; align-items: center; font-size: 0.9em; }
+        .status { color: #888; font-size: 14px; margin-bottom: 15px; padding: 10px; min-height: 20px; }
+        .lang-switch { margin-bottom: 20px; padding: 12px; background: #f0f0f0; border-radius: 10px; display: inline-flex; gap: 15px; align-items: center; }
 
-        /* 字庫表佈局：一行一詞，支援長句換行 */
-        .word-bank { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-        .word-item { display: flex; align-items: flex-start; justify-content: center; }
+        /* 1. 字庫表佈局：支援一行多個按鈕，最多10個 */
+        .word-bank { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(calc(10% - 10px), 1fr)); 
+            gap: 10px; 
+            margin-bottom: 20px; 
+            justify-content: center;
+        }
+        /* 如果字詞太長，讓該按鈕橫跨多欄 */
+        .word-item { grid-column: span 1; display: flex; }
+        .long-word { grid-column: 1 / -1; } /* 長句子自動佔滿整行 */
+
         .word-btn { 
             background: #fff; border: 2px solid var(--primary-color); color: var(--primary-color); 
-            padding: 12px 15px; border-radius: 12px; cursor: pointer; 
-            font-size: 18px; font-weight: bold; width: 100%; max-width: 450px;
-            text-align: left; line-height: 1.4; white-space: normal; word-break: break-all;
+            padding: 10px; border-radius: 10px; cursor: pointer; 
+            font-size: 16px; font-weight: bold; width: 100%;
+            text-align: center; white-space: normal; word-break: break-all;
+            transition: 0.2s;
         }
-        .word-btn:hover { background: #ebf5fb; }
+        .word-btn:hover { background: var(--primary-color); color: white; }
 
-        /* 預習模式：每行 10 個字自動換行 */
+        /* 2. 預習模式：精準 10 字換行 */
         #preview-area { background: #e8f6f3; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: none; }
         #preview-writer-container { 
-            display: flex; flex-wrap: wrap; justify-content: center; 
-            gap: 8px; margin: 20px auto; 
-            max-width: 480px; /* 約為 10 個字的寬度 (40px + gap) */
+            display: flex; flex-wrap: wrap; justify-content: flex-start; 
+            gap: 5px; margin: 20px auto; 
+            width: 455px; /* (40px字體 + 5px間距) * 10 = 450px + 額外 buffer */
         }
         
-        .char-box { border: 1px solid #ddd; border-radius: 4px; background: white; flex-shrink: 0; }
+        .char-box { border: 1px solid #ddd; border-radius: 4px; background: white; flex-shrink: 0; box-sizing: border-box; }
         
         /* 測驗區 */
         #writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
         
-        button { padding: 12px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button { padding: 12px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; }
         .btn-start { background: var(--success-color); color: white; width: 100%; font-size: 1.2em; margin-top: 10px; }
         .btn-audio { background: #f39c12; color: white; }
         .btn-action { background: #9b59b6; color: white; }
@@ -49,7 +59,7 @@
     <h1>📝 自動同步默書練習</h1>
     
     <div class="lang-switch">
-        <span>讀音設定：</span>
+        <span>讀音：</span>
         <label><input type="radio" name="voiceLang" value="zh-HK" checked> 廣東話</label>
         <label><input type="radio" name="voiceLang" value="zh-CN"> 普通話</label>
     </div>
@@ -57,35 +67,30 @@
     <div id="loading-status" class="status">正在同步試算表資料...</div>
     
     <div id="word-bank-container" style="display: none;">
-        <h3 style="color: #2c3e50; margin-bottom: 15px;">本期字庫表 (點擊可預習)</h3>
+        <h3 style="color: #2c3e50;">本期字庫表 (點擊字詞預習)</h3>
         <div id="word-bank" class="word-bank"></div>
     </div>
 
     <div id="preview-area">
         <h3 style="color: #16a085;">🔍 預習模式</h3>
-        <div style="margin-bottom: 10px;">
-            <button class="btn-audio" onclick="speakPreviewWord()">🔈 讀音</button>
-            <button class="btn-action" onclick="animatePreview()">筆順</button>
-        </div>
+        <button class="btn-audio" onclick="speakPreviewWord()">🔈 讀音</button>
+        <button class="btn-action" onclick="animatePreview()">演示筆順</button>
         <div id="preview-writer-container"></div>
-        <button onclick="closePreview()" style="background:#bdc3c7; margin-top:10px;">關閉預習</button>
+        <button onclick="closePreview()" style="background:#bdc3c7;">關閉預習</button>
     </div>
     
     <button class="btn-start" id="start-btn" onclick="startQuiz()" style="display:none;">開始隨機默書</button>
 
     <div id="quiz-area" style="display:none; margin-top: 25px; border-top: 2px dashed #eee; padding-top: 20px;">
         <h2 id="quiz-status">聽寫練習</h2>
-        <button class="btn-audio" onclick="speakCurrentWord()" style="font-size: 1.5em; padding: 15px 30px;">🔈 播放題目</button>
+        <button class="btn-audio" onclick="speakCurrentWord()" style="font-size: 1.2em;">🔈 重新播放題目</button>
         <div id="writer-container"></div>
-        <div style="margin-top: 20px;">
-            <button class="btn-action" onclick="showAllStrokes()">顯示答案</button>
-            <button onclick="nextWord()" style="background:var(--primary-color); color:white">下一題</button>
-        </div>
+        <button class="btn-action" onclick="showAllStrokes()">顯示答案</button>
+        <button onclick="nextWord()" style="background:var(--primary-color); color:white">下一題</button>
     </div>
 </div>
 
 <script>
-    // CSV 發佈連結
     const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_K04T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
     
     let words = [];
@@ -95,131 +100,35 @@
     let previewWriters = [];
     let currentPreviewWord = '';
 
-    // 初始化讀取
     async function fetchWords() {
+        const statusEl = document.getElementById('loading-status');
         try {
             const response = await fetch(`${PUBLISH_URL}&t=${Date.now()}`);
-            const data = await response.text();
-            const lines = data.split(/\r?\n/);
+            if (!response.ok) throw new Error('網路回應不正常');
             
-            // 解析 CSV 並過濾空白
+            const data = await response.text();
+            // 改進的 CSV 解析邏輯
+            const lines = data.split(/\r?\n/);
             words = lines.slice(1) 
-                         .map(row => row.split(',')[0].trim().replace(/"/g, ''))
-                         .filter(w => w !== "");
+                         .map(row => {
+                             // 處理可能包含引號的 CSV 格式
+                             let firstCol = row.split(',')[0];
+                             return firstCol ? firstCol.trim().replace(/^"|"$/g, '') : "";
+                         })
+                         .filter(w => w.length > 0);
             
             if (words.length > 0) {
-                document.getElementById('loading-status').innerHTML = `<span style="color:green">✅ 已同步 ${words.length} 個字詞</span>`;
+                statusEl.innerHTML = `<span style="color:green">✅ 已成功同步 ${words.length} 組內容</span>`;
                 renderWordBank();
                 document.getElementById('word-bank-container').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'block';
             } else {
-                document.getElementById('loading-status').innerText = '⚠️ 試算表內沒有資料。';
+                statusEl.innerText = '⚠️ 試算表內沒有偵測到字詞，請確認第一欄(A欄)有內容。';
             }
         } catch (error) {
-            document.getElementById('loading-status').innerText = '❌ 讀取失敗，請確認 Google Sheets 已公開發佈。';
+            statusEl.innerHTML = `<span style="color:red">❌ 同步失敗：${error.message}</span><br><small>請確認 Google Sheets 是否已「發佈到網路」並選擇 CSV 格式。</small>`;
         }
     }
 
-    // 渲染字庫表 (加入序號與換行支援)
     function renderWordBank() {
-        const container = document.getElementById('word-bank');
-        container.innerHTML = words.map((w, i) => 
-            `<div class="word-item">
-                <button class="word-btn" onclick="openPreview('${w}')">${i + 1}. ${w}</button>
-            </div>`
-        ).join('');
-    }
-
-    // 開啟預習 (每 10 字換行)
-    function openPreview(word) {
-        currentPreviewWord = word;
-        document.getElementById('preview-area').style.display = 'block';
-        document.getElementById('quiz-area').style.display = 'none';
-        
-        const container = document.getElementById('preview-writer-container');
-        container.innerHTML = '';
-        previewWriters = [];
-
-        // 固定字體大小，依賴 CSS max-width 實現每 10 字換行
-        const charSize = 40; 
-
-        for (let char of word) {
-            const charDiv = document.createElement('div');
-            charDiv.className = 'char-box';
-            container.appendChild(charDiv);
-            
-            const writer = HanziWriter.create(charDiv, char, { 
-                width: charSize, 
-                height: charSize, 
-                padding: 2, 
-                showOutline: true,
-                strokeAnimationSpeed: 2
-            });
-            previewWriters.push(writer);
-        }
-        speak(word);
-        document.getElementById('preview-area').scrollIntoView({ behavior: 'smooth' });
-    }
-
-    function animatePreview() { previewWriters.forEach(w => w.animateCharacter()); }
-    function speakPreviewWord() { speak(currentPreviewWord); }
-    function closePreview() { document.getElementById('preview-area').style.display = 'none'; }
-
-    // 測驗邏輯
-    function startQuiz() {
-        closePreview();
-        quizPool = [...words].sort(() => Math.random() - 0.5);
-        currentQuizIndex = 0;
-        document.getElementById('quiz-area').style.display = 'block';
-        showQuizWord();
-        document.getElementById('quiz-area').scrollIntoView({ behavior: 'smooth' });
-    }
-
-    function showQuizWord() {
-        const word = quizPool[currentQuizIndex];
-        const container = document.getElementById('writer-container');
-        container.innerHTML = '';
-        quizWriters = [];
-        document.getElementById('quiz-status').innerText = `正在練習第 ${currentQuizIndex + 1} / ${quizPool.length} 題`;
-        
-        speak(word);
-
-        // 測驗模式也支援長句換行
-        for (let char of word) {
-            const charDiv = document.createElement('div');
-            charDiv.className = 'char-box';
-            container.appendChild(charDiv);
-            quizWriters.push(HanziWriter.create(charDiv, char, { 
-                width: 60, height: 60, padding: 5, 
-                showCharacter: false, showOutline: false 
-            }));
-        }
-    }
-
-    function speakCurrentWord() { speak(quizPool[currentQuizIndex]); }
-    function showAllStrokes() { quizWriters.forEach(w => { w.showOutline(); w.animateCharacter(); }); }
-
-    function nextWord() {
-        currentQuizIndex++;
-        if (currentQuizIndex < quizPool.length) {
-            showQuizWord();
-        } else { 
-            alert('恭喜！完成本次練習！'); 
-            document.getElementById('quiz-area').style.display = 'none'; 
-        }
-    }
-
-    function speak(text) {
-        window.speechSynthesis.cancel();
-        const msg = new SpeechSynthesisUtterance(text);
-        const selectedLang = document.querySelector('input[name="voiceLang"]:checked').value;
-        msg.lang = selectedLang;
-        msg.rate = 0.8; // 稍微放慢語速，方便聽寫
-        window.speechSynthesis.speak(msg);
-    }
-
-    fetchWords();
-</script>
-
-</body>
-</html>
+        const container

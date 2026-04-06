@@ -3,53 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>默書系統 v2.5 - 標點符號與空格支援版</title>
+    <title>默書系統 v2.6 - 語速與同步優化版</title>
     <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
     <style>
         :root { --primary-color: #3498db; --success-color: #2ecc71; --bg-color: #fdf6e3; }
         body { font-family: 'Microsoft JhengHei', sans-serif; background-color: var(--bg-color); text-align: center; padding: 15px; color: #333; margin: 0; }
         .container { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: auto; min-height: 450px; }
         
-        .status { color: #888; font-size: 14px; margin-bottom: 10px; padding: 5px; }
-        .lang-switch { margin-bottom: 20px; padding: 12px; background: #f0f0f0; border-radius: 10px; display: inline-flex; gap: 15px; align-items: center; }
+        .status { color: #888; font-size: 14px; margin-bottom: 10px; padding: 10px; border-radius: 8px; }
+        .control-panel { margin-bottom: 15px; padding: 15px; background: #f0f0f0; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .flex-row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; }
+
+        /* 語速按鈕樣式 */
+        .speed-btn { background: #fff; border: 1px solid #ccc; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-size: 14px; }
+        .speed-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); }
 
         /* 字庫表：限定高度並顯示捲軸 */
         #word-bank-container { border: 1px solid #ddd; border-radius: 12px; background: #fafafa; margin-bottom: 20px; display: none; overflow: hidden; }
         .word-bank { 
             display: flex; flex-direction: column; gap: 8px; 
-            max-height: 300px; 
-            overflow-y: auto; padding: 15px; text-align: left;
+            max-height: 300px; overflow-y: auto; padding: 15px; text-align: left;
         }
-        
-        /* 捲軸美化 */
         .word-bank::-webkit-scrollbar { width: 8px; }
         .word-bank::-webkit-scrollbar-thumb { background: #ccc; border-radius: 10px; }
 
         .word-btn { 
             background: #fff; border: 2px solid var(--primary-color); color: var(--primary-color); 
             padding: 12px 15px; border-radius: 10px; cursor: pointer; 
-            font-size: 18px; font-weight: bold; width: 100%;
+            font-size: 18px; font-weight: bold; width: 100%; text-align: left;
             white-space: normal; word-break: break-all; transition: 0.2s;
         }
         .word-btn:hover { background: #ebf5fb; }
 
-        /* 預習區：精準置中 & 10 字換行 */
+        /* 預習區：置中 */
         #preview-area { background: #e8f6f3; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: none; }
-        
-        #preview-writer-container { 
-            display: flex; 
-            flex-wrap: wrap; 
-            justify-content: center; /* 字詞置中 */
-            gap: 5px; 
-            margin: 15px auto; 
-            width: 455px; 
-        }
-        
+        #preview-writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin: 15px auto; width: 455px; }
         .char-box { border: 1px solid #ddd; border-radius: 4px; background: white; box-sizing: border-box; color: #333; }
         
         /* 測驗區 */
         #writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
-        
         button { padding: 12px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; }
         .btn-start { background: var(--success-color); color: white; width: 100%; font-size: 1.2em; }
         .btn-audio { background: #f39c12; color: white; }
@@ -61,13 +53,21 @@
 <div class="container">
     <h1>📝 自動同步默書練習</h1>
     
-    <div class="lang-switch">
-        <span>讀音：</span>
-        <label><input type="radio" name="voiceLang" value="zh-HK" checked> 廣東話</label>
-        <label><input type="radio" name="voiceLang" value="zh-CN"> 普通話</label>
+    <div class="control-panel">
+        <div class="flex-row">
+            <span>讀音：</span>
+            <label><input type="radio" name="voiceLang" value="zh-HK" checked> 廣東話</label>
+            <label><input type="radio" name="voiceLang" value="zh-CN"> 普通話</label>
+        </div>
+        <div class="flex-row">
+            <span>語速：</span>
+            <button class="speed-btn" onclick="setSpeed(0.5, this)">0.5x</button>
+            <button class="speed-btn active" onclick="setSpeed(0.75, this)">0.75x</button>
+            <button class="speed-btn" onclick="setSpeed(1.0, this)">1x</button>
+        </div>
     </div>
 
-    <div id="loading-status" class="status">正在同步試算表資料...</div>
+    <div id="loading-status" class="status">正在嘗試與 Google 試算表連線...</div>
     
     <div id="word-bank-container">
         <div style="padding: 10px; background: #eee; font-weight: bold; border-bottom: 1px solid #ddd;">本期字庫表 (向上滑動查看更多)</div>
@@ -104,5 +104,148 @@
     let quizWriters = [];
     let previewWriters = [];
     let currentPreviewWord = '';
+    let currentSpeed = 0.75;
 
-    // 檢查是否為中文字的函數 (包含基本
+    function isChineseChar(char) { return /[\u4e00-\u9fa5]/.test(char); }
+
+    function setSpeed(val, btn) {
+        currentSpeed = val;
+        document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    async function fetchWords() {
+        const statusEl = document.getElementById('loading-status');
+        try {
+            // 使用更強制的快取刷新策略
+            const response = await fetch(`${PUBLISH_URL}&cachebust=${Date.now()}`, { cache: "no-store" });
+            
+            if (!response.ok) throw new Error(`連線失敗 (狀態碼: ${response.status})`);
+            
+            const rawData = await response.text();
+            if (!rawData || rawData.length < 5) throw new Error('讀取到的資料格式不正確或為空');
+
+            const lines = rawData.split(/\r?\n/);
+            words = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                let cell = lines[i].split(',')[0]; 
+                if (cell) {
+                    let cleanWord = cell.replace(/^"|"$/g, '');
+                    if (cleanWord.trim() !== "") words.push(cleanWord);
+                }
+            }
+            
+            if (words.length > 0) {
+                statusEl.style.display = 'none';
+                renderWordBank();
+                document.getElementById('word-bank-container').style.display = 'block';
+                document.getElementById('start-btn').style.display = 'block';
+            } else {
+                statusEl.innerHTML = '⚠️ 試算表內沒有字詞。';
+            }
+        } catch (error) {
+            statusEl.innerHTML = `<div style="color:#e74c3c; background:#fadbd8; padding:10px; border-radius:5px;">
+                ❌ 同步失敗: ${error.message}<br><small>請確認 Google 試算表已「發佈為 CSV」且網址正確。</small>
+            </div>`;
+        }
+    }
+
+    function renderWordBank() {
+        const container = document.getElementById('word-bank');
+        container.innerHTML = words.map((w, i) => `
+            <div class="word-item">
+                <button class="word-btn" onclick="openPreview('${w}')">${i + 1}. ${w}</button>
+            </div>`).join('');
+    }
+
+    function openPreview(word) {
+        currentPreviewWord = word;
+        document.getElementById('preview-area').style.display = 'block';
+        document.getElementById('word-bank-container').style.display = 'none';
+        document.getElementById('start-btn').style.display = 'none';
+        const container = document.getElementById('preview-writer-container');
+        container.innerHTML = '';
+        previewWriters = [];
+        for (let char of word) {
+            const charDiv = document.createElement('div');
+            charDiv.className = 'char-box';
+            container.appendChild(charDiv);
+            if (isChineseChar(char)) {
+                previewWriters.push(HanziWriter.create(charDiv, char, { 
+                    width: 40, height: 40, padding: 2, showOutline: true, strokeAnimationSpeed: 2
+                }));
+            } else {
+                charDiv.style.width = '40px'; charDiv.style.height = '40px';
+                charDiv.style.display = 'flex'; charDiv.style.alignItems = 'center'; charDiv.style.justifyContent = 'center';
+                charDiv.style.fontSize = '20px'; charDiv.style.fontWeight = 'bold';
+                charDiv.innerText = char === ' ' ? '\u00A0' : char; 
+            }
+        }
+        speak(word);
+    }
+
+    function closePreview() {
+        document.getElementById('preview-area').style.display = 'none';
+        document.getElementById('word-bank-container').style.display = 'block';
+        document.getElementById('start-btn').style.display = 'block';
+    }
+
+    function animatePreview() { previewWriters.forEach(w => w.animateCharacter()); }
+    function speakPreviewWord() { speak(currentPreviewWord); }
+
+    function startQuiz() {
+        quizPool = [...words].sort(() => Math.random() - 0.5);
+        currentQuizIndex = 0;
+        document.getElementById('word-bank-container').style.display = 'none';
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('quiz-area').style.display = 'block';
+        showQuizWord();
+    }
+
+    function showQuizWord() {
+        const word = quizPool[currentQuizIndex];
+        const container = document.getElementById('writer-container');
+        container.innerHTML = '';
+        quizWriters = [];
+        document.getElementById('quiz-status').innerText = `正在練習第 ${currentQuizIndex + 1} / ${quizPool.length} 題`;
+        speak(word);
+        for (let char of word) {
+            const charDiv = document.createElement('div');
+            charDiv.className = 'char-box';
+            container.appendChild(charDiv);
+            if (isChineseChar(char)) {
+                quizWriters.push(HanziWriter.create(charDiv, char, { 
+                    width: 60, height: 60, padding: 5, showCharacter: false, showOutline: false 
+                }));
+            } else {
+                charDiv.style.width = '60px'; charDiv.style.height = '60px';
+                charDiv.style.display = 'flex'; charDiv.style.alignItems = 'center'; charDiv.style.justifyContent = 'center';
+                charDiv.style.fontSize = '30px'; charDiv.style.fontWeight = 'bold';
+                charDiv.innerText = char === ' ' ? '\u00A0' : char; 
+            }
+        }
+    }
+
+    function speakCurrentWord() { speak(quizPool[currentQuizIndex]); }
+    function showAllStrokes() { quizWriters.forEach(w => { w.showOutline(); w.animateCharacter(); }); }
+
+    function nextWord() {
+        currentQuizIndex++;
+        if (currentQuizIndex < quizPool.length) {
+            showQuizWord();
+        } else { alert('全數練習完成！'); location.reload(); }
+    }
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = document.querySelector('input[name="voiceLang"]:checked').value;
+        msg.rate = currentSpeed; 
+        window.speechSynthesis.speak(msg);
+    }
+
+    fetchWords();
+</script>
+</body>
+</html>

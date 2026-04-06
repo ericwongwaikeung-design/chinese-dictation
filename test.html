@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>默書系統 v2.4 - 置中與連線優化版</title>
+    <title>默書系統 v2.5 - 標點符號與空格支援版</title>
     <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
     <style>
         :root { --primary-color: #3498db; --success-color: #2ecc71; --bg-color: #fdf6e3; }
@@ -17,7 +17,7 @@
         #word-bank-container { border: 1px solid #ddd; border-radius: 12px; background: #fafafa; margin-bottom: 20px; display: none; overflow: hidden; }
         .word-bank { 
             display: flex; flex-direction: column; gap: 8px; 
-            max-height: 300px; /* 約 5 個項目的高度 */
+            max-height: 300px; 
             overflow-y: auto; padding: 15px; text-align: left;
         }
         
@@ -33,7 +33,7 @@
         }
         .word-btn:hover { background: #ebf5fb; }
 
-        /* 預習區：精準置中 & 10 字換行修復 */
+        /* 預習區：精準置中 & 10 字換行 */
         #preview-area { background: #e8f6f3; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: none; }
         
         #preview-writer-container { 
@@ -42,10 +42,10 @@
             justify-content: center; /* 字詞置中 */
             gap: 5px; 
             margin: 15px auto; 
-            width: 455px; /* (40px + 5px gap) * 10 */
+            width: 455px; 
         }
         
-        .char-box { border: 1px solid #ddd; border-radius: 4px; background: white; box-sizing: border-box; }
+        .char-box { border: 1px solid #ddd; border-radius: 4px; background: white; box-sizing: border-box; color: #333; }
         
         /* 測驗區 */
         #writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
@@ -96,7 +96,6 @@
 </div>
 
 <script>
-    // 確保這裡的連結是正確的，特別注意不要把 0 打成 O
     const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_K04T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
     
     let words = [];
@@ -106,139 +105,4 @@
     let previewWriters = [];
     let currentPreviewWord = '';
 
-    // 加強版的資料讀取功能
-    async function fetchWords() {
-        const statusEl = document.getElementById('loading-status');
-        try {
-            // 加入 cache busting 參數確保取得最新資料
-            const response = await fetch(`${PUBLISH_URL}&t=${Date.now()}`);
-            
-            // 如果連線狀態不是 200 OK，拋出包含狀態碼的錯誤
-            if (!response.ok) {
-                throw new Error(`網絡連線異常 (狀態碼: ${response.status})`);
-            }
-            
-            const rawData = await response.text();
-            if (!rawData || rawData.trim() === "") throw new Error('讀取到空白資料');
-
-            const lines = rawData.split(/\r?\n/);
-            words = [];
-
-            // 從第二行開始讀取 (i=1)
-            for (let i = 1; i < lines.length; i++) {
-                let cell = lines[i].split(',')[0]; 
-                if (cell) {
-                    let cleanWord = cell.trim().replace(/^"|"$/g, '');
-                    if (cleanWord !== "") words.push(cleanWord);
-                }
-            }
-            
-            if (words.length > 0) {
-                statusEl.innerHTML = `<span style="color:green">✅ 已成功同步 ${words.length} 組內容</span>`;
-                renderWordBank();
-                document.getElementById('word-bank-container').style.display = 'block';
-                document.getElementById('start-btn').style.display = 'block';
-            } else {
-                statusEl.innerHTML = '<span style="color:#e67e22">⚠️ 試算表 A 欄似乎沒有字詞。</span>';
-            }
-        } catch (error) {
-            console.error("Fetch Error:", error);
-            // 顯示更詳細的錯誤訊息在畫面上
-            statusEl.innerHTML = `<div style="color:#e74c3c; background:#fadbd8; padding:10px; border-radius:5px; margin-top:5px;">
-                ❌ 同步失敗: ${error.message}<br>
-                <small>請確認 Google Sheets 已「發佈為 CSV」且網址正確無誤。</small>
-            </div>`;
-        }
-    }
-
-    function renderWordBank() {
-        const container = document.getElementById('word-bank');
-        container.innerHTML = words.map((w, i) => `
-            <div class="word-item">
-                <button class="word-btn" onclick="openPreview('${w}')">${i + 1}. ${w}</button>
-            </div>`).join('');
-    }
-
-    function openPreview(word) {
-        currentPreviewWord = word;
-        document.getElementById('preview-area').style.display = 'block';
-        document.getElementById('word-bank-container').style.display = 'none';
-        document.getElementById('start-btn').style.display = 'none';
-        
-        const container = document.getElementById('preview-writer-container');
-        container.innerHTML = '';
-        previewWriters = [];
-
-        for (let char of word) {
-            const charDiv = document.createElement('div');
-            charDiv.className = 'char-box';
-            container.appendChild(charDiv);
-            previewWriters.push(HanziWriter.create(charDiv, char, { 
-                width: 40, height: 40, padding: 2, showOutline: true, strokeAnimationSpeed: 2
-            }));
-        }
-        speak(word);
-    }
-
-    function closePreview() {
-        document.getElementById('preview-area').style.display = 'none';
-        document.getElementById('word-bank-container').style.display = 'block';
-        document.getElementById('start-btn').style.display = 'block';
-    }
-
-    function animatePreview() { previewWriters.forEach(w => w.animateCharacter()); }
-    function speakPreviewWord() { speak(currentPreviewWord); }
-
-    function startQuiz() {
-        quizPool = [...words].sort(() => Math.random() - 0.5);
-        currentQuizIndex = 0;
-        document.getElementById('word-bank-container').style.display = 'none';
-        document.getElementById('start-btn').style.display = 'none';
-        document.getElementById('quiz-area').style.display = 'block';
-        showQuizWord();
-    }
-
-    function showQuizWord() {
-        const word = quizPool[currentQuizIndex];
-        const container = document.getElementById('writer-container');
-        container.innerHTML = '';
-        quizWriters = [];
-        document.getElementById('quiz-status').innerText = `正在練習第 ${currentQuizIndex + 1} / ${quizPool.length} 題`;
-        speak(word);
-
-        for (let char of word) {
-            const charDiv = document.createElement('div');
-            charDiv.className = 'char-box';
-            container.appendChild(charDiv);
-            quizWriters.push(HanziWriter.create(charDiv, char, { 
-                width: 60, height: 60, padding: 5, showCharacter: false, showOutline: false 
-            }));
-        }
-    }
-
-    function speakCurrentWord() { speak(quizPool[currentQuizIndex]); }
-    function showAllStrokes() { quizWriters.forEach(w => { w.showOutline(); w.animateCharacter(); }); }
-
-    function nextWord() {
-        currentQuizIndex++;
-        if (currentQuizIndex < quizPool.length) {
-            showQuizWord();
-        } else { 
-            alert('全數練習完成！'); 
-            location.reload(); 
-        }
-    }
-
-    function speak(text) {
-        window.speechSynthesis.cancel();
-        const msg = new SpeechSynthesisUtterance(text);
-        msg.lang = document.querySelector('input[name="voiceLang"]:checked').value;
-        msg.rate = 0.8; 
-        window.speechSynthesis.speak(msg);
-    }
-
-    fetchWords();
-</script>
-
-</body>
-</html>
+    // 檢查是否為中文字的函數 (包含基本

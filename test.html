@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>默書系統 v2.3 - 置中修復版</title>
+    <title>默書系統 v2.4 - 置中與連線優化版</title>
     <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
     <style>
         :root { --primary-color: #3498db; --success-color: #2ecc71; --bg-color: #fdf6e3; }
@@ -33,13 +33,13 @@
         }
         .word-btn:hover { background: #ebf5fb; }
 
-        /* --- 預習區：精準置中 & 10 字換行修復 --- */
+        /* 預習區：精準置中 & 10 字換行修復 */
         #preview-area { background: #e8f6f3; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: none; }
         
         #preview-writer-container { 
             display: flex; 
             flex-wrap: wrap; 
-            justify-content: center; /* ⭐⭐⭐ ⭐⭐⭐ ⭐⭐⭐⭐⭐⭐⭐⭐ 這裡是核心改動：將靠左改為置中 ⭐⭐⭐ ⭐⭐⭐ ⭐⭐⭐ ⭐⭐⭐⭐ */
+            justify-content: center; /* 字詞置中 */
             gap: 5px; 
             margin: 15px auto; 
             width: 455px; /* (40px + 5px gap) * 10 */
@@ -96,7 +96,8 @@
 </div>
 
 <script>
-    const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_KO4T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
+    // 確保這裡的連結是正確的，特別注意不要把 0 打成 O
+    const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_K04T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
     
     let words = [];
     let currentQuizIndex = 0;
@@ -105,12 +106,17 @@
     let previewWriters = [];
     let currentPreviewWord = '';
 
-    // 核心修復：使用更安全的解析方式
+    // 加強版的資料讀取功能
     async function fetchWords() {
         const statusEl = document.getElementById('loading-status');
         try {
+            // 加入 cache busting 參數確保取得最新資料
             const response = await fetch(`${PUBLISH_URL}&t=${Date.now()}`);
-            if (!response.ok) throw new Error('網絡連線異常');
+            
+            // 如果連線狀態不是 200 OK，拋出包含狀態碼的錯誤
+            if (!response.ok) {
+                throw new Error(`網絡連線異常 (狀態碼: ${response.status})`);
+            }
             
             const rawData = await response.text();
             if (!rawData || rawData.trim() === "") throw new Error('讀取到空白資料');
@@ -120,9 +126,9 @@
 
             // 從第二行開始讀取 (i=1)
             for (let i = 1; i < lines.length; i++) {
-                let cell = lines[i].split(',')[0]; // 只取 A 欄
+                let cell = lines[i].split(',')[0]; 
                 if (cell) {
-                    let cleanWord = cell.trim().replace(/^"|"$/g, ''); // 去除引號
+                    let cleanWord = cell.trim().replace(/^"|"$/g, '');
                     if (cleanWord !== "") words.push(cleanWord);
                 }
             }
@@ -133,11 +139,15 @@
                 document.getElementById('word-bank-container').style.display = 'block';
                 document.getElementById('start-btn').style.display = 'block';
             } else {
-                statusEl.innerText = '⚠️ 試算表 A 欄似乎沒有字詞。';
+                statusEl.innerHTML = '<span style="color:#e67e22">⚠️ 試算表 A 欄似乎沒有字詞。</span>';
             }
         } catch (error) {
-            console.error(error);
-            statusEl.innerHTML = `<span style="color:red">❌ 同步失敗: ${error.message}</span><br><small>請檢查 Sheets 是否已「發佈為 CSV」</small>`;
+            console.error("Fetch Error:", error);
+            // 顯示更詳細的錯誤訊息在畫面上
+            statusEl.innerHTML = `<div style="color:#e74c3c; background:#fadbd8; padding:10px; border-radius:5px; margin-top:5px;">
+                ❌ 同步失敗: ${error.message}<br>
+                <small>請確認 Google Sheets 已「發佈為 CSV」且網址正確無誤。</small>
+            </div>`;
         }
     }
 
@@ -215,7 +225,7 @@
             showQuizWord();
         } else { 
             alert('全數練習完成！'); 
-            location.reload(); // 重置回字庫表
+            location.reload(); 
         }
     }
 

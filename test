@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自動同步默書系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+    <style>
+        body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #fdf6e3; text-align: center; padding: 20px; color: #333; }
+        .container { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
+        .status { color: #888; font-size: 13px; margin-bottom: 15px; }
+        
+        /* 字庫表樣式 */
+        .word-bank { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; }
+        .word-btn { background: #fff; border: 2px solid #3498db; color: #3498db; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.2s; }
+        .word-btn:hover { background: #3498db; color: white; }
+
+        /* 預習區塊樣式 */
+        #preview-area { background: #e8f6f3; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
+        #preview-area h3 { margin-top: 0; color: #16a085; }
+
+        #writer-container, #preview-writer-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
+        .char-box { border: 1px solid #eee; border-radius: 8px; background: white; }
+        
+        button { padding: 12px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; margin: 5px; }
+        .btn-start { background: #2ecc71; color: white; width: 100%; font-size: 1.2em; margin-top: 10px; }
+        .btn-action { background: #9b59b6; color: white; }
+        .btn-audio { background: #f39c12; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📝 自動同步默書練習</h1>
+    <div id="loading-status" class="status">正在從 Google Sheets 獲取字詞...</div>
+    
+    <div id="word-bank-container" style="display: none;">
+        <h3 style="color: #2c3e50; font-size: 1.1em;">本期字庫表 (點擊字詞可預習)</h3>
+        <div id="word-bank" class="word-bank"></div>
+    </div>
+
+    <div id="preview-area">
+        <h3>🔍 預習模式</h3>
+        <button class="btn-audio" onclick="speakPreviewWord()">🔈 讀出字詞</button>
+        <button class="btn-action" onclick="animatePreview()">演示筆順</button>
+        <div id="preview-writer-container"></div>
+        <button onclick="closePreview()" style="background:#bdc3c7; color:#333; margin-top:10px;">關閉預習</button>
+    </div>
+    
+    <button class="btn-start" id="start-btn" onclick="startQuiz()" style="display:none;">開始隨機默書</button>
+
+    <div id="quiz-area" style="display:none; margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 20px;">
+        <h2 id="quiz-status">聽一聽，寫寫看</h2>
+        <button class="btn-audio" onclick="speakCurrentWord()">🔈 播放</button>
+        <div id="writer-container"></div>
+        <button class="btn-action" onclick="showAllStrokes()">顯示答案與筆順</button>
+        <button onclick="nextWord()" style="background:#3498db; color:white">下一題</button>
+    </div>
+</div>
+
+<script>
+    // ⚠️ 記得替換成你自己的發佈連結！
+    const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_K04T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
+    
+    let words = [];
+    let currentQuizIndex = 0;
+    let quizWriters = [];
+    let previewWriters = [];
+    let currentPreviewWord = '';
+
+    // 自動讀取 Google Sheets 資料
+    async function fetchWords() {
+        try {
+            const response = await fetch(PUBLISH_URL);
+            const data = await response.text();
+            
+            const lines = data.split('\n');
+            words = lines.slice(1)
+                         .map(row => row.trim().replace(/"/g, ''))
+                         .filter(w => w !== "");
+            
+            if (words.length > 0) {
+                document.getElementById('loading-status').innerText = `✅ 已同步 ${words.length} 個字詞`;
+                renderWordBank(); // 顯示字庫表
+                document.getElementById('word-bank-container').style.display = 'block';
+                document.getElementById('start-btn').style.display = 'block';
+            } else {
+                document.getElementById('loading-status').innerText = '試算表中沒有字詞。';
+            }
+        } catch (error) {
+            document.getElementById('loading-status').innerText = '讀取失敗，請檢查網路或權限。';
+        }
+    }
+
+    // 建立字庫表按鈕
+    function renderWordBank() {
+        const container = document.getElementById('word-bank');
+        container.innerHTML = words.map(w => 
+            `<button class="word-btn" onclick="openPreview('${w}')">${w}</button>`
+        ).join('');
+    }
+
+    // --- 預習功能邏輯 ---
+    function openPreview(word) {
+        currentPreviewWord = word;
+        document.getElementById('preview-area').style.display = 'block';
+        document.getElementById('quiz-area').style.display = 'none'; // 隱藏默書區
+        
+        const container = document.getElementById('preview-writer-container');
+        container.innerHTML = '';
+        previewWriters = [];
+
+        for (let char of word) {
+            const charDiv = document.createElement('div');
+            charDiv.className = 'char-box';
+            container.appendChild(charDiv);
+            // 預習模式直接顯示字體輪廓
+            previewWriters.push(HanziWriter.create(charDiv, char, { width: 100, height: 100, padding: 5, showOutline: true, strokeAnimationSpeed: 1.5 }));
+        }
+        
+        // 打開預習時自動發音一次
+        speakPreviewWord();
+    }
+
+    function animatePreview() {
+        previewWriters.forEach(w => w.animateCharacter());
+    }
+
+    function speakPreviewWord() {
+        speak(currentPreviewWord);
+    }
+
+    function closePreview() {
+        document.getElementById('preview-area').style.display = 'none';
+        document.getElementById('preview-writer-container').innerHTML = '';
+    }
+
+    // --- 默書功能邏輯 (與之前相同) ---
+    function startQuiz() {
+        if (words.length === 0) return;
+        closePreview(); // 開始默書時關閉預習
+        document.getElementById('quiz-area').style.display = 'block';
+        words.sort(() => Math.random() - 0.5); // 隨機打亂
+        currentQuizIndex = 0;
+        showQuizWord();
+        document.getElementById('quiz-area').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showQuizWord() {
+        const word = words[currentQuizIndex];
+        const container = document.getElementById('writer-container');
+        container.innerHTML = '';
+        quizWriters = [];
+        document.getElementById('quiz-status').innerText = `第 ${currentQuizIndex + 1} / ${words.length} 題`;
+        
+        speak(word);
+
+        for (let char of word) {
+            const charDiv = document.createElement('div');
+            charDiv.className = 'char-box';
+            container.appendChild(charDiv);
+            // 默書模式一開始隱藏輪廓 (只顯示框)，點擊顯示答案後才畫出來
+            quizWriters.push(HanziWriter.create(charDiv, char, { width: 100, height: 100, padding: 5, showCharacter: false, showOutline: false }));
+        }
+    }
+
+    function speakCurrentWord() {
+        speak(words[currentQuizIndex]);
+    }
+
+    function showAllStrokes() { 
+        quizWriters.forEach(w => {
+            w.showOutline();
+            w.animateCharacter();
+        }); 
+    }
+
+    function nextWord() {
+        currentQuizIndex++;
+        if (currentQuizIndex < words.length) {
+            showQuizWord();
+        } else { 
+            alert('太棒了！所有題目都默寫完畢！'); 
+            document.getElementById('quiz-area').style.display = 'none'; 
+        }
+    }
+
+    // 共用語音功能
+    function speak(text) {
+        // 先停止之前的發音，避免重疊
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'zh-CN'; // 設定為普通話
+        window.speechSynthesis.speak(msg);
+    }
+
+    // 啟動程式
+    fetchWords();
+</script>
+
+</body>
+</html>

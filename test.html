@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>默書系統 v2.3 - 穩定修復版</title>
+    <title>默書系統 v2.3 - 置中修復版</title>
     <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
     <style>
         :root { --primary-color: #3498db; --success-color: #2ecc71; --bg-color: #fdf6e3; }
@@ -33,12 +33,18 @@
         }
         .word-btn:hover { background: #ebf5fb; }
 
-        /* 預習區：精準 10 字換行 */
+        /* --- 預習區：精準置中 & 10 字換行修復 --- */
         #preview-area { background: #e8f6f3; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: none; }
+        
         #preview-writer-container { 
-            display: flex; flex-wrap: wrap; justify-content: center; 
-            gap: 5px; margin: 15px auto; width: 455px; /* (40px + 5px gap) * 10 */
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; /* ⭐⭐⭐ ⭐⭐⭐ ⭐⭐⭐⭐⭐⭐⭐⭐ 這裡是核心改動：將靠左改為置中 ⭐⭐⭐ ⭐⭐⭐ ⭐⭐⭐ ⭐⭐⭐⭐ */
+            gap: 5px; 
+            margin: 15px auto; 
+            width: 455px; /* (40px + 5px gap) * 10 */
         }
+        
         .char-box { border: 1px solid #ddd; border-radius: 4px; background: white; box-sizing: border-box; }
         
         /* 測驗區 */
@@ -53,7 +59,7 @@
 <body>
 
 <div class="container">
-    <h1>📝 靖柔的默書小幫手</h1>
+    <h1>📝 自動同步默書練習</h1>
     
     <div class="lang-switch">
         <span>讀音：</span>
@@ -90,7 +96,7 @@
 </div>
 
 <script>
-    const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_K04T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
+    const PUBLISH_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRD4G48qqtl2pimwA3XpNo-HbzG_KO4T5Nwzr_kL330-fi2acIJmrAjVgktkQk1YdH92EqJNl8kQjkG/pub?output=csv'; 
     
     let words = [];
     let currentQuizIndex = 0;
